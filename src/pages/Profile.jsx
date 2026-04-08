@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
-import { User, Mail, BookOpen, Calendar, LogOut, ShieldCheck } from 'lucide-react';
+import { User, Mail, BookOpen, Calendar, LogOut, ShieldCheck, MapPin, Hash } from 'lucide-react';
 import api from '../api/axios';
 
 const Profile = () => {
@@ -12,6 +12,8 @@ const Profile = () => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [distanceLoading, setDistanceLoading] = useState(false);
+    const [distanceError, setDistanceError] = useState('');
 
     // Safety check - we initialize state with user details if available
     const [formData, setFormData] = useState({
@@ -20,9 +22,27 @@ const Profile = () => {
         department: user?.department || '',
         year: user?.year || '',
         CGPA: user?.CGPA || '',
+        city: user?.city || '',
         distance: user?.distance || '',
         registerNumber: user?.registerNumber || ''
     });
+
+    const handleCityBlur = async () => {
+        if (!formData.city) return;
+        
+        setDistanceLoading(true);
+        setDistanceError('');
+        
+        try {
+            const { data } = await api.get(`/auth/distance?city=${encodeURIComponent(formData.city)}`);
+            setFormData(prev => ({ ...prev, distance: data.distance }));
+        } catch (err) {
+            setDistanceError(err.response?.data?.message || 'Invalid city name');
+            console.error('Distance calculation error:', err);
+        } finally {
+            setDistanceLoading(false);
+        }
+    };
 
     const handleUpdate = async (e) => {
         e.preventDefault();
@@ -97,7 +117,7 @@ const Profile = () => {
                                     </div>
 
                                     <div className="flex items-center gap-4 border-t border-gray-200 pt-4">
-                                        <div className="bg-purple-100 p-3 rounded-xl text-purple-600"><LogOut size={20} /></div>
+                                        <div className="bg-purple-100 p-3 rounded-xl text-purple-600"><Hash size={20} /></div>
                                         <div className="flex-1">
                                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Register Number</label>
                                             <input type="text" value={formData.registerNumber} onChange={(e) => setFormData({ ...formData, registerNumber: e.target.value })} disabled={!isEditing} className="w-full bg-transparent font-semibold text-gray-800 outline-none border-b border-transparent focus:border-purple-500 transition-colors disabled:opacity-70" />
@@ -121,17 +141,53 @@ const Profile = () => {
                                     </div>
 
                                     <div className="flex items-center gap-4 border-t border-gray-200 pt-4">
-                                        <div className="bg-red-100 p-3 rounded-xl text-red-600"><LogOut size={20} /></div>
+                                        <div className="bg-red-100 p-3 rounded-xl text-red-600"><MapPin size={20} /></div>
                                         <div className="flex-1">
-                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Distance (km)</label>
-                                            <input type="number" min="0" value={formData.distance} onChange={(e) => setFormData({ ...formData, distance: e.target.value })} disabled={!isEditing} className="w-full bg-transparent font-semibold text-gray-800 outline-none border-b border-transparent focus:border-red-500 transition-colors disabled:opacity-70" />
+                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Hometown & Distance</label>
+                                            <div className="relative">
+                                                {isEditing ? (
+                                                    <>
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Enter city name (e.g. Madurai)" 
+                                                            value={formData.city} 
+                                                            onChange={(e) => setFormData({ ...formData, city: e.target.value })} 
+                                                            onBlur={handleCityBlur}
+                                                            className="w-full bg-transparent font-semibold text-gray-800 outline-none border-b border-blue-500 transition-colors pr-10" 
+                                                        />
+                                                        {distanceLoading && (
+                                                            <div className="absolute right-0 top-0 bottom-0 flex items-center pr-2">
+                                                                <span className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full font-bold"></span>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <p className="font-semibold text-gray-800">
+                                                        {user.city || 'Not set'} • {user.distance !== undefined ? user.distance : 0} km from Campus
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {isEditing && (
+                                                <div className="mt-1">
+                                                    {formData.distance !== undefined && formData.distance !== '' && !distanceError && (
+                                                        <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
+                                                            <ShieldCheck size={12} /> Distance: {formData.distance} km
+                                                        </p>
+                                                    )}
+                                                    {distanceError && (
+                                                        <p className="text-[10px] text-red-500 font-bold">
+                                                            ! {distanceError}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </>
                             )}
 
                             {isEditing && (
-                                <button type="submit" disabled={isUpdating} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 transition flex justify-center items-center">
+                                <button type="submit" disabled={isUpdating || distanceLoading || (formData.city && formData.distance === '' && !distanceError && formData.city.toLowerCase() !== 'coimbatore')} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 transition flex justify-center items-center">
                                     {isUpdating ? 'Saving...' : 'Save Changes'}
                                 </button>
                             )}
@@ -155,6 +211,7 @@ const Profile = () => {
                                     department: user.department || '',
                                     year: user.year || '',
                                     CGPA: user.CGPA || '',
+                                    city: user.city || '',
                                     distance: user.distance || '',
                                     registerNumber: user.registerNumber || ''
                                 });

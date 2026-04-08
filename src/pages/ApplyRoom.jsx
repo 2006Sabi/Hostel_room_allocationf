@@ -10,6 +10,7 @@ const ApplyRoom = () => {
     const [selectedType, setSelectedType] = useState('Any');
     const [selectedSharing, setSelectedSharing] = useState('Any');
     const [specialCategory, setSpecialCategory] = useState('None');
+    const [city, setCity] = useState('');
     const [requestMessage, setRequestMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [submitLoading, setSubmitLoading] = useState(false);
@@ -61,6 +62,7 @@ const ApplyRoom = () => {
                 type: selectedType,
                 sharing: selectedSharing,
                 specialCategory: specialCategory,
+                city: city,
                 message: requestMessage // Not in backend schema but added to request per requirement
             });
             setSuccess('Application submitted successfully!');
@@ -132,6 +134,21 @@ const ApplyRoom = () => {
                                 {rooms.length === 0 && (
                                     <p className="text-xs text-red-500 mt-2">No rooms currently available to apply.</p>
                                 )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">City / Hometown</label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="E.g. Madurai"
+                                        value={city}
+                                        onChange={(e) => setCity(e.target.value)}
+                                        className="block w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 focus:bg-white transition-all outline-none font-medium text-gray-800"
+                                    />
+                                    <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">Distance will be automatically calculated for group allocation.</p>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -219,10 +219,10 @@ const ApplicationManagement = () => {
                                             </div>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Distance</p>
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Home Location</p>
                                             <div className="flex items-center gap-2 text-gray-900 font-bold">
                                                 <Calendar size={16} className="text-gray-400" />
-                                                <span>{app.studentId?.distance} km from Campus</span>
+                                                <span>{app.city || 'Somewhere'} • {app.distance ?? app.studentId?.distance} km</span>
                                             </div>
                                         </div>
                                         {app.allocatedRoom && (

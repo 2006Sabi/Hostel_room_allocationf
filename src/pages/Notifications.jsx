@@ -54,8 +54,8 @@ const Notifications = () => {
                             <MessageSquare size={40} />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-gray-900">All caught up!</h3>
-                            <p className="text-gray-500 mt-1">Check back later for new announcements.</p>
+                            <h3 className="text-xl font-bold text-gray-900">No new notifications yet</h3>
+                            <p className="text-gray-500 mt-1">We'll let you know when there's an announcement for you.</p>
                         </div>
                     </div>
                 ) : (
@@ -68,11 +68,24 @@ const Notifications = () => {
                                     </h3>
                                     <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                                         <Clock size={14} />
-                                        {new Date(n.createdAt).toLocaleDateString(undefined, {
-                                            year: 'numeric',
-                                            month: 'short',
-                                            day: 'numeric'
-                                        })}
+                                        {(() => {
+                                            const date = new Date(n.createdAt);
+                                            const now = new Date();
+                                            const diff = now - date;
+                                            const mins = Math.floor(diff / 60000);
+                                            const hours = Math.floor(mins / 60);
+                                            const days = Math.floor(hours / 24);
+
+                                            if (mins < 60) return `${mins} min${mins !== 1 ? 's' : ''} ago`;
+                                            if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+                                            if (days < 7) return `${days} day${days !== 1 ? 's' : ''} ago`;
+                                            
+                                            return date.toLocaleDateString(undefined, {
+                                                year: 'numeric',
+                                                month: 'short',
+                                                day: 'numeric'
+                                            });
+                                        })()}
                                     </div>
                                 </div>
                                 <p className="text-gray-600 leading-relaxed text-sm">

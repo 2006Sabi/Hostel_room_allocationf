@@ -1,33 +1,71 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import AuthContext from '../context/AuthContext';
-import { Shield, Lock, ArrowRight, Loader } from 'lucide-react';
+import useFormValidation from '../hooks/useFormValidation';
+import Toast from '../components/Toast';
+import { Shield, Lock, ArrowRight, Loader, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const AdminLogin = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
+    const [authError, setAuthError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showWelcome, setShowWelcome] = useState(false);
+
+    const validate = useCallback((values) => {
+        const errors = {};
+        if (!values.email) {
+            errors.email = 'Enter a valid admin email';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+            errors.email = 'Enter a valid email address';
+        }
+
+        if (!values.password) {
+            errors.password = 'Password must contain at least 8 characters, one uppercase letter, and one special character';
+        } else if (!/^(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}$/.test(values.password)) {
+            errors.password = 'Password must contain at least 8 characters, one uppercase letter, and one special character';
+        }
+        return errors;
+    }, []);
+
+    const {
+        values,
+        errors,
+        touched,
+        handleChange,
+        handleBlur,
+        isValid
+    } = useFormValidation({ email: '', password: '' }, validate);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
+        if (!isValid) return;
+
+        setAuthError('');
         setLoading(true);
         try {
-            const { data } = await api.post('/auth/login', { email, password });
+            const { data } = await api.post('/auth/login', { 
+                email: values.email, 
+                password: values.password 
+            });
 
             if (data.role !== 'warden' && data.role !== 'admin') {
                 throw new Error('Not authorized as an administrator');
             }
 
             login(data, data.token);
-            navigate('/admin/dashboard');
+            
+            if (data.isFirstLogin) {
+                setShowWelcome(true);
+                setTimeout(() => {
+                    navigate('/admin/dashboard');
+                }, 2000);
+            } else {
+                navigate('/admin/dashboard');
+            }
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to login as admin');
+            setAuthError(err.response?.data?.message || err.message || 'Failed to login as admin');
         } finally {
             setLoading(false);
         }
@@ -48,9 +86,10 @@ const AdminLogin = () => {
                 </div>
 
                 <div className="p-8">
-                    {error && (
-                        <div className="bg-red-500/10 text-red-400 p-4 rounded-xl mb-6 text-sm font-medium border border-red-500/20 text-center">
-                            {error}
+                    {authError && (
+                        <div className="bg-red-500/10 text-red-400 p-4 rounded-xl mb-6 text-sm font-medium border border-red-500/20 text-center flex items-center justify-center gap-2">
+                            <AlertCircle size={18} />
+                            {authError}
                         </div>
                     )}
 
@@ -59,40 +98,82 @@ const AdminLogin = () => {
                             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Admin Email</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Shield size={16} className="text-slate-500" />
+                                    <Shield size={16} className={`${touched.email ? (errors.email ? 'text-red-400' : 'text-emerald-500') : 'text-slate-500'}`} />
                                 </div>
                                 <input
                                     type="email"
+                                    name="email"
                                     required
-                                    className="block w-full pl-10 pr-3 py-3 border border-slate-600 rounded-xl focus:ring-red-500 focus:border-red-500 bg-slate-700/50 text-white placeholder-slate-500 transition-colors outline-none"
+                                    className={`block w-full pl-10 pr-10 py-3 border rounded-xl transition-all outline-none bg-slate-700/30 text-white placeholder-slate-500 ${
+                                        touched.email 
+                                            ? (errors.email 
+                                                ? 'border-red-500/50 focus:ring-red-500' 
+                                                : 'border-emerald-500/50 focus:ring-emerald-500')
+                                            : 'border-slate-600 focus:ring-red-500'
+                                    }`}
                                     placeholder="admin@hostelhub.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    value={values.email}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
                                 />
+                                {touched.email && (
+                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        {errors.email ? (
+                                            <AlertCircle size={18} className="text-red-500" />
+                                        ) : (
+                                            <CheckCircle2 size={18} className="text-emerald-500" />
+                                        )}
+                                    </div>
+                                )}
                             </div>
+                            {touched.email && errors.email && (
+                                <p className="mt-1 text-[11px] text-red-400 font-medium ml-1">{errors.email}</p>
+                            )}
                         </div>
 
                         <div>
                             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Passcode</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Lock size={16} className="text-slate-500" />
+                                    <Lock size={16} className={`${touched.password ? (errors.password ? 'text-red-400' : 'text-emerald-500') : 'text-slate-500'}`} />
                                 </div>
                                 <input
                                     type="password"
+                                    name="password"
                                     required
-                                    className="block w-full pl-10 pr-3 py-3 border border-slate-600 rounded-xl focus:ring-red-500 focus:border-red-500 bg-slate-700/50 text-white placeholder-slate-500 transition-colors outline-none"
+                                    className={`block w-full pl-10 pr-10 py-3 border rounded-xl transition-all outline-none bg-slate-700/30 text-white placeholder-slate-500 ${
+                                        touched.password 
+                                            ? (errors.password 
+                                                ? 'border-red-500/50 focus:ring-red-500' 
+                                                : 'border-emerald-500/50 focus:ring-emerald-500')
+                                            : 'border-slate-600 focus:ring-red-500'
+                                    }`}
                                     placeholder="••••••••"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    value={values.password}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
                                 />
+                                {touched.password && (
+                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        {errors.password ? (
+                                            <AlertCircle size={18} className="text-red-500" />
+                                        ) : (
+                                            <CheckCircle2 size={18} className="text-emerald-500" />
+                                        )}
+                                    </div>
+                                )}
                             </div>
+                            {touched.password && errors.password && (
+                                <p className="mt-1 text-[11px] text-red-400 font-medium ml-1 leading-relaxed">
+                                    {errors.password}
+                                </p>
+                            )}
                         </div>
 
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-red-500/25 mt-8 disabled:opacity-70"
+                            disabled={loading || !isValid}
+                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-red-500/25 mt-8 disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale"
                         >
                             {loading ? (
                                 <Loader className="animate-spin" size={20} />
@@ -111,6 +192,11 @@ const AdminLogin = () => {
                     </div>
                 </div>
             </div>
+            <Toast 
+                isVisible={showWelcome} 
+                message="Welcome back, Administrator! Your secure session has started." 
+                onClose={() => setShowWelcome(false)}
+            />
         </div>
     );
 };
